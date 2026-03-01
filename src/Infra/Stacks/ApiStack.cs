@@ -18,6 +18,18 @@ namespace Infra.Stacks
                 Description = "Anthropic Claude API key for MotiveAI"
             });
 
+            // API Gateway
+            var api = new RestApi(this, "MotiveAIApi", new RestApiProps
+            {
+                RestApiName = "motiveai-api",
+                DefaultCorsPreflightOptions = new CorsOptions
+                {
+                    AllowOrigins = Cors.ALL_ORIGINS,
+                    AllowMethods = Cors.ALL_METHODS,
+                    AllowHeaders = new[] { "Authorization", "Content-Type" }
+                }
+            });
+
             // Lambda function
             var analyzeFunction = new Function(this, "AnalyzeFunction", new FunctionProps
             {
@@ -33,21 +45,24 @@ namespace Infra.Stacks
                 }
             });
 
-            // API Gateway
-            var api = new RestApi(this, "MotiveAIApi", new RestApiProps
+            // Events Lambda — fetches latest from GDELT, no secrets needed
+            var eventsFunction = new Function(this, "EventsFunction", new FunctionProps
             {
-                RestApiName = "motiveai-api",
-                DefaultCorsPreflightOptions = new CorsOptions
-                {
-                    AllowOrigins = Cors.ALL_ORIGINS,
-                    AllowMethods = Cors.ALL_METHODS,
-                    AllowHeaders = new[] { "Authorization", "Content-Type" }
-                }
+                FunctionName = "motiveai-events",
+                Runtime = Runtime.DOTNET_8,
+                Handler = "MotiveAI.Events::MotiveAI.Events.Function::FunctionHandler",
+                Code = Code.FromAsset(@"C:\motiveai\app\lambda\MotiveAI.Events\publish"),
+                Timeout = Duration.Seconds(30),
+                MemorySize = 256
             });
 
             var analyze = api.Root.AddResource("analyze");
             analyze.AddMethod("POST", new LambdaIntegration(analyzeFunction));
 
+            var events = api.Root.AddResource("events");
+            events.AddMethod("GET", new LambdaIntegration(eventsFunction));
+
+            new CfnOutput(this, "EventsUrl", new CfnOutputProps { Value = $"{api.Url}events" });
             new CfnOutput(this, "ApiUrl", new CfnOutputProps { Value = api.Url });
         }
     }
