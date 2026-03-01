@@ -19,22 +19,19 @@ namespace Infra.Stacks
             });
 
             // Lambda function
-            //var analyzeFunction = new Function(this, "AnalyzeFunction", new FunctionProps
-            //{
-            //    FunctionName = "motiveai-analyze",
-            //    Runtime = Runtime.DOTNET_8,
-            //    Handler = "MotiveAI.App::MotiveAI.App.Functions.AnalyzeFunction::FunctionHandler",
-            //    Code = Code.FromAsset(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "placeholder.zip"), new Amazon.CDK.AWS.Lambda.AssetOptions()),
-            //    Timeout = Duration.Seconds(30),
-            //    MemorySize = 512,
-            //    Environment = new Dictionary<string, string>
-            //    {
-            //        ["CLAUDE_SECRET_ARN"] = claudeSecret.SecretArn
-            //    }
-            //});
-
-            // Grant Lambda permission to read the secret
-            //claudeSecret.GrantRead(analyzeFunction);
+            var analyzeFunction = new Function(this, "AnalyzeFunction", new FunctionProps
+            {
+                FunctionName = "motiveai-analyze",
+                Runtime = Runtime.DOTNET_8,
+                Handler = "MotiveAI.Lambda::MotiveAI.Lambda.Function::FunctionHandler",
+                Code = Code.FromAsset(@"C:\motiveai\app\lambda\MotiveAI.Lambda\publish"),
+                Timeout = Duration.Seconds(30),
+                MemorySize = 512,
+                Environment = new Dictionary<string, string>
+                {
+                    ["CLAUDE_SECRET_ARN"] = claudeSecret.SecretArn
+                }
+            });
 
             // API Gateway
             var api = new RestApi(this, "MotiveAIApi", new RestApiProps
@@ -48,8 +45,8 @@ namespace Infra.Stacks
                 }
             });
 
-            //var analyze = api.Root.AddResource("analyze");
-            //analyze.AddMethod("POST", new LambdaIntegration(analyzeFunction));
+            var analyze = api.Root.AddResource("analyze");
+            analyze.AddMethod("POST", new LambdaIntegration(analyzeFunction));
 
             new CfnOutput(this, "ApiUrl", new CfnOutputProps { Value = api.Url });
         }
